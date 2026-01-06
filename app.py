@@ -3,65 +3,62 @@ import numpy as np
 import joblib
 import json
 
-st.set_page_config(page_title="Car Value Estimator", page_icon="🚗")
+st.set_page_config(page_title="Pizza Price Estimator", page_icon="🍕")
 
-# --- Custom Styling (Rose Theme) ---
+# --- Custom Styling (Yellow Theme) ---
 st.markdown("""
 <style>
-    .main { background: linear-gradient(135deg, #4c0519 0%, #881337 100%); }
+    .main { background: linear-gradient(135deg, #713f12 0%, #854d0e 100%); }
     .stApp { color: white; font-family: 'Inter', sans-serif; }
     
     /* Force all labels and text to be bold */
     label, .stMarkdown, p, span, div { font-weight: 600 !important; }
     h1, h2, h3 { font-weight: 800 !important; }
     
-    .stNumberInput label, .stSelectbox label { font-weight: 700 !important; color: #fecdd3 !important; }
-    
     .prediction-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(15px);
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
         border-radius: 20px;
-        padding: 2.5rem;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
-        margin-top: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
 metadata = json.load(open('metadata.json'))
-model = joblib.load('etrcarpricepredict.pkl')
+model = joblib.load('rfr_pizza_price.pkl')
+scaler = joblib.load('pizzaregscaler.joblib')
 
-st.title("🚗 AutoValue Pro")
-st.write("Get an instant market estimate for any vehicle.")
+st.title("🍕 PizzaPrice Genius")
+st.write("Calculate the perfect price for your custom pizza.")
 
-m = metadata["mappings"]["cars_price"]
+m = metadata["mappings"]["pizza_price"]
 c1, c2 = st.columns(2)
 
 with c1:
-    brand = st.selectbox("**Brand**", list(m["brand"].keys()))
-    year = st.number_input("**Year**", 1990, 2024, 2015)
-    km = st.number_input("**Kilometers Driven**", 0, 1000000, 50000)
-    fuel = st.selectbox("**Fuel Type**", list(m["fuel"].keys()))
-    trans = st.selectbox("**Transmission**", list(m["transmission"].keys()))
-    engine = st.number_input("**Engine (CC)**", 600, 7000, 1200)
+    company = st.selectbox("**Company**", list(m["company"].keys()))
+    diameter = st.number_input("**Diameter (Inches)**", 8.0, 30.0, 12.0)
+    topping = st.selectbox("**Topping**", list(m["topping"].keys()))
+    variant = st.selectbox("**Variant**", list(m["variant"].keys()))
 
 with c2:
-    power = st.number_input("**Max Power (bhp)**", 30, 1000, 80)
-    mileage = st.number_input("**Mileage (kmpl)**", 5, 40, 18)
-    seats = st.number_input("**Seats**", 2, 14, 5)
-    torque = st.number_input("**Torque (Nm)**", 30, 1000, 150)
-    owner = st.selectbox("**Owner Type**", list(m["owner"].keys()))
-    seller = st.selectbox("**Seller Type**", list(m["seller_type"].keys()))
+    size = st.selectbox("**Size**", list(m["size"].keys()))
+    sauce = st.selectbox("**Extra Sauce?**", ["yes", "no"])
+    cheese = st.selectbox("**Extra Cheese?**", ["yes", "no"])
+    mushrooms = st.selectbox("**Extra Mushrooms?**", ["yes", "no"])
 
-if st.button("Estimate Price"):
+if st.button("Calculate Price"):
+    # Scaler expects only 1 feature (diameter)
+    scaled_diameter = scaler.transform(np.array([[diameter]]))[0][0]
+    
     inputs = [
-        m["brand"][brand], year, km, m["fuel"][fuel], m["transmission"][trans],
-        engine, power, mileage, seats, torque, m["owner"][owner], m["seller_type"][seller]
+        m["company"][company], scaled_diameter, m["topping"][topping], 
+        m["variant"][variant], m["size"][size],
+        1 if sauce=='yes' else 0, 1 if cheese=='yes' else 0, 1 if mushrooms=='yes' else 0
     ]
     
-    # Model uses log transformation? Based on previous app.py logic
     pred = model.predict(np.array(inputs).reshape(1, -1))[0]
-    final_price = np.exp(pred) - 1
+    price = np.exp(pred) - 1
     
-    st.success(f"Estimated Market Value: ₹ {final_price:,.2f}")
+    st.success(f"Estimated Pizza Price: ₹ {price:,.2f}")
